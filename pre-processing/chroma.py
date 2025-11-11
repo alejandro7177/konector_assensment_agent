@@ -18,12 +18,17 @@ class Chroma:
     embeddings : OpenAIEmbeddings
     n_results : Optional[int] = 10
 
-    def __init__(self, port, host, embeddings):
+    def __init__(
+            self,
+            embeddings: OpenAIEmbeddings,
+            port: int =8000, 
+            host: str= "http://localhost",
+        )-> None:
         try:
             self.embeddings = embeddings
             self.client = chromadb.HttpClient(
-                host=os.environ.get("CHROMA_DB_HOST"),
-                port=os.environ.get("CHROMA_DB_PORT")
+                host=host,
+                port=port
             )
         except Exception as ex:
             self.client = None
@@ -35,8 +40,11 @@ class Chroma:
             return False
         return True
 
-    def get_or_create_collection(self, collection_name)->Collection:
-        return self.client.get_or_create_collection(name=collection_name)
+    def get_or_create_collection(self, collection_name)->Optional[Collection]:
+        if self.client:
+            return self.client.get_or_create_collection(name=collection_name)
+        print(self.error_client)
+        return None
 
     def query(self, collection_name, query, wheres= None)-> Dict[str,Any]:
         try:

@@ -2,8 +2,6 @@ import chromadb
 import os
 import json
 from uuid import uuid4
-from dotenv import load_dotenv
-load_dotenv(".env")
 from langchain_core.documents import Document
 from langchain_openai.embeddings import OpenAIEmbeddings
 from chromadb.api import ClientAPI
@@ -22,7 +20,8 @@ class Chroma:
             self,
             embeddings: OpenAIEmbeddings,
             port: int =8000, 
-            host: str= "http://localhost",
+            host: str= "localhost",
+            k: int =10
         )-> None:
         try:
             self.embeddings = embeddings
@@ -30,9 +29,10 @@ class Chroma:
                 host=host,
                 port=port
             )
+            self.n_results = k
         except Exception as ex:
             self.client = None
-            self.error_client = ex. __str__()
+            self.error_client = ex. __str__()   
 
     def check_health(self)-> bool:
         if self.client is None:
@@ -46,10 +46,9 @@ class Chroma:
         print(self.error_client)
         return None
 
-    def query(self, collection_name, query, wheres= None)-> Dict[str,Any]:
+    def query(self, collection:Collection, query:str, wheres:Dict=None)-> Dict[str,Any]:
         try:
             documents = []
-            collection = self.get_or_create_collection(collection_name=collection_name)
             if collection:
                 embed_query = self.embeddings.embed_query(query)
                 documents = collection.query(
@@ -58,8 +57,8 @@ class Chroma:
                     n_results=self.n_results,
                     include=["documents", "metadatas"]
                 )
+            print(" Documents retrieved from ChromaDb: ", documents)
             if documents["ids"] != [[]]:
-                print(documents)
                 return [
                     {
                         "id": id,
@@ -67,14 +66,14 @@ class Chroma:
                         "metadata": metadata
                     } 
                     for id, doc, metadata in zip(
-                        documents["ids"], 
-                        documents["documents"], 
-                        documents["metadatas"])
+                        documents["ids"][0], 
+                        documents["documents"][0], 
+                        documents["metadatas"][0])
                 ]
             print(f"""
                 Documentos no recuperados:
                     Arg 
-                        - collection_name= {collection_name}
+                        - collection_name= {collection.name}
                         - wheres = {wheres}
             """)
             return []
@@ -96,26 +95,31 @@ class Chroma:
             print(f"Error during get document ChromaDb {ex}")
             return None
         
-    def add_documents(
+    def add_document(
             self, 
-            documents:List[Dict[str,Any]], 
+            document:Dict[str,Any], 
             collection:Collection
         )-> List[str]:
         try:
-            ids = [str(uuid4()) for _ in documents]
-            docs = [doc["doc"] for doc in documents]
+
+            id = document.get("id", str(uuid4()))
+            doc = document.get("doc")
+            metadata = document.get("metadata", {})
+
             collection.add(
-                ids=ids, 
-                documents=docs, 
-                embeddings=self.embeddings.embed_documents(docs),
-                metadatas=[doc.get("metadata", {}) for doc in documents]
+                ids=[id], 
+                documents=[doc], 
+                embeddings=self.embeddings.embed_query(doc),
+                metadatas=[metadata]
             )
-            return ids
+            return id
         except Exception as ex:
             print(f"Error during add documents ChromaDb {ex}")
             return []
 
 if __name__ == "__main__":
+    from dotenv import load_dotenv
+    load_dotenv(".env")
     langchain_embeddings = OpenAIEmbeddings(
         model="text-embedding-3-large", 
         api_key=os.environ.get("OPENAI_API_KEY")
@@ -124,25 +128,18 @@ if __name__ == "__main__":
     chroma = Chroma(
         port=os.environ.get("CHROMA_DB_PORT"),
         host=os.environ.get("CHROMA_DB_HOST"),
-        embeddings=langchain_embeddings
+        embeddings=langchain_embeddings,
+        k = 10
     )
 
     print(chroma.check_health())
     print("Creando coleccion test_collection")
     collection = chroma.get_or_create_collection("test_collection")
-    # print("Coleccion creada")
-    # print("Subiendo documentos test_docs")
-    # docs = [
-    #     {"doc": "Este es un documento de prueba", "metadata": {"source": "test2"}}, 
-    #     {"doc": "Este es otro documento de prueba", "metadata": {"source": "test3"}}
-    # ]
 
-    # chroma.add_documents(docs, collection)
-    # print("Documentos subidos")
-    results =chroma.query("test_collection", "prueba", wheres={"source": "test3 "})
-    print("Resultados de la consulta:")
-    print(results)
-
-    # doc = chroma.get_document(collection, "407f63ca-09ea-47b2-8913-4b5fc729cd4d")
-    # print("Documento recuperado:")
-    # print(json.dumps(doc, indent=2))
+    query = "I want a robust actuator for hazardous environments with an Duty Cycle of less than 200"
+    wheres =  {"$and": [
+        {"Enclosure Type": "Explosionproof"},
+        {"Duty Cycle": {"$lt": 200}}
+    ]}
+    results = chroma.query(collection, query, wheres)
+    print("Results: ", json.dumps(results, indent=2))

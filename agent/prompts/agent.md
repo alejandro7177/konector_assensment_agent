@@ -38,6 +38,7 @@ This product line includes heavy-duty actuators used to remotely open, close, or
    • operating speed
    • electrical power and voltage type
    • enclosure suitability
+7. Response only spanish!
 
 ### Goals
 • Guide the user toward the correct actuator selection with maximum confidence.

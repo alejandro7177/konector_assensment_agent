@@ -4,6 +4,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.checkpoint.memory import MemorySaver
 from agent.tools.productRecommendation import ProductRecommendationTool
+from langchain.messages import SystemMessage
 
 class AgentActuator:
     def __init__(
@@ -25,7 +26,7 @@ class AgentActuator:
         )
 
     def invoke_agent(self, input, thread_id: str = str(uuid.uuid4())):
-        return self.agent.invoke(
+        result = self.agent.invoke(
             input={"messages": [{"role": "user", "content": input}]}, 
             config={
                 "configurable":{
@@ -33,6 +34,10 @@ class AgentActuator:
                 }
             }
         )
+        return [
+            message.model_dump() 
+            for message in result.get("messages")
+        ]
 
 if __name__ == "__main__":
     import dotenv
@@ -45,9 +50,8 @@ if __name__ == "__main__":
         api_key=os.environ.get("OPENAI_API_KEY")
     )
     tools = [ProductRecommendationTool()]
-    system_prompt = """You are a technical expert specializing in 76 Series electric actuators. You must be able to communicate effectively with users to assist them with their technical needs. The following tools are available to you:
-    ProductRecommendationTool: Use this tool to generate a recommendation of electrical attenuator series based on the user's product requirements. The input should be a detailed description of the user's needs. The output is a JSON file containing a list of recommended attenuators based on the input, with a specific ID, a description, and a set of metadata for each attenuator in the following format:{'id': 'xxxxxxxxx', 'page_content':'text', 'metadata':{}}
-    """
+    with open("agent/prompts/agent.md", "r", encoding="utf-8") as f:
+        system_prompt = f.read()
     
     agent_actuator = AgentActuator(
         tools=tools,

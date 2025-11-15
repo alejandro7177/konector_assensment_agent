@@ -57,7 +57,6 @@ class Chroma:
                     n_results=self.n_results,
                     include=["documents", "metadatas"]
                 )
-            print(" Documents retrieved from ChromaDb: ", documents)
             if documents["ids"] != [[]]:
                 return [
                     {
@@ -71,7 +70,7 @@ class Chroma:
                         documents["metadatas"][0])
                 ]
             print(f"""
-                Documentos no recuperados:
+                Unrecovered documents:
                     Arg 
                         - collection_name= {collection.name}
                         - wheres = {wheres}

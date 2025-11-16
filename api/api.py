@@ -13,7 +13,7 @@ async def lifespan(app: FastAPI):
         conversation_system_prompt = f.read()
 
     tools = [ProductRecommendationTool()]
-    llm = ChatOpenAI(name="gpt-4.1", temperature=0)
+    llm = ChatOpenAI(model="gpt-4.1", temperature=0)
 
     app.state.agent = AgentActuator(
         tools=tools,

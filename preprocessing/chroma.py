@@ -46,7 +46,7 @@ class Chroma:
         print(self.error_client)
         return None
 
-    def query(self, collection:Collection, query:str, wheres:Dict=None)-> Dict[str,Any]:
+    def query(self, collection:Collection, query:str, wheres:Dict=None)-> List[Dict[str,Any]]:
         try:
             documents = []
             if collection:
@@ -80,16 +80,36 @@ class Chroma:
             print(f"Error during query ChromaDb {ex}")
             return []
 
-    def get_document(self, collection: Collection, doc_id: str)-> Optional[Dict[str,Any]]:
+    def get_documents(
+            self, 
+            collection: Collection, 
+            doc_ids: Optional[List[str]]=None, 
+            wheres: Optional[Dict]=None, 
+            limit:Optional[int]=10
+        )-> Optional[List[Dict[str,Any]]]:
         try:
-            result = collection.get(ids=[doc_id], include=["documents", "metadatas"])
-            if result and len(result["documents"]) > 0:
-                return {
-                    "id": result["ids"][0],
-                    "page_content": result["documents"][0],
-                    "metadata": result["metadatas"][0]
-                }
-            return {}
+            result = collection.get(
+                ids=doc_ids, 
+                include=["documents", "metadatas"], 
+                where=wheres,
+                limit=limit
+            )
+            print("Wheres filter applied: ", wheres)
+            print("Documents retrieved: ", result)
+            
+            if len(result["ids"]) > 0 and result["ids"][0] != []:
+                return [
+                    {
+                        "id": id,
+                        "page_content": doc,
+                        "metadata": metadata
+                    } 
+                    for id, doc, metadata in zip(
+                        result["ids"], 
+                        result["documents"],
+                        result["metadatas"])
+                ]
+            return []
         except Exception as ex:
             print(f"Error during get document ChromaDb {ex}")
             return None
@@ -136,9 +156,6 @@ if __name__ == "__main__":
     collection = chroma.get_or_create_collection("test_collection")
 
     query = "I want a robust actuator for hazardous environments with an Duty Cycle of less than 200"
-    wheres =  {"$and": [
-        {"Enclosure Type": "Explosionproof"},
-        {"Duty Cycle": {"$lt": 200}}
-    ]}
-    results = chroma.query(collection, query, wheres)
+    wheres =   {'$and': [{'Enclosure Type': 'Weatherproof'}, {'Power Supply': '24V AC/DC'}]}
+    results = chroma.get_documents(collection, wheres=wheres, limit=5, doc_ids=None)
     print("Results: ", json.dumps(results, indent=2))

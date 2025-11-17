@@ -9,8 +9,8 @@ class SpecificDataRetrievalShema(BaseModel):
     id: str = Field(..., description="Unique identifier of the data to retrieve Base Part Number")
 
 class SpecificDataRetrievalTool(BaseTool):
-    name="SpecificDataRetrievalTool"
-    description=(
+    name: str="SpecificDataRetrievalTool"
+    description: str=(
         "Use this tool to retrieve specific data based on a unique identifier (Base Part Number)."
         "The input should be the unique identifier of the data to retrieve."
         "The output is a JSON file containing the data associated with the given identifier."
@@ -30,10 +30,9 @@ class SpecificDataRetrievalTool(BaseTool):
             wheres = {"Base Part Number": id}
             results = Store.get_documents(
                 collection=collection,
-                wheres=wheres,
                 limit=1,
-                doc_ids=None
+                doc_ids=[id]
             )
-            return json.dumps(results["documents"], indent=1)
+            return json.dumps(results[0]) if results else "No data found for the given identifier."
         except Exception as ex:
             return f"Error during specific data retrieval: {ex}"
